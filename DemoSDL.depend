@@ -1,0 +1,8 @@
+# depslib dependency file v1.0
+1746380319 source:c:\=))\demosdl\main.cpp
+	<SDL.h>
+	<SDL_ttf.h>
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+
