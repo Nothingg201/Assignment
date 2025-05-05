@@ -22,7 +22,7 @@ HOW_TO_PLAY,
 HIGH_SCORE
 };
 
-int menuOption = 0; // menu 0: Start, 1: High Score, 2: Cách chơi, 3: Exit
+int menuOption = 0; // menu 0: Start, 1: High Score, 2: Cách chơi, 3: Reset highscore, 4: Exit
 
 int main(int argc, char* args[]) {
     // Khởi tạo SDL
@@ -76,7 +76,7 @@ int main(int argc, char* args[]) {
 
 
     // Tốc độ ban đầu của chướng ngại vật
-    float obstacleSpeed = 1.0; // Tốc độ khởi đầu
+    float obstacleSpeed = 0.005; // Tốc độ khởi đầu
     float speedIncreaseRate = 0.0015; // Tốc độ tăng thêm sau mỗi frame
     int score = 0;
     int highscore = 0;
@@ -99,56 +99,77 @@ int main(int argc, char* args[]) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             }
-            if (state == MENU && e.type == SDL_KEYDOWN){
-                    if(e.key.keysym.sym == SDLK_UP){
-                        menuOption = (menuOption -1 +4) %4;
-                        continue;
+            switch (state){
+                case MENU:
+            if (e.type == SDL_KEYDOWN) {
+                    if (e.key.keysym.sym == SDLK_UP) {
+                        menuOption = (menuOption - 1 + 5) % 5;
                     }
-                    if(e.key.keysym.sym == SDLK_DOWN){
-                        menuOption = (menuOption + 1)%4;
-                        continue;
+                    if (e.key.keysym.sym == SDLK_DOWN) {
+                        menuOption = (menuOption + 1) % 5;
                     }
             if (e.key.keysym.sym == SDLK_RETURN){
-                    if(menuOption == 0){
+                     FILE* f = NULL;
+                    switch(menuOption) {
+            case 0: {// START
                 state = PLAYING;
                 obstacleY = -OBSTACLE_HEIGHT;
                 carX = SCREEN_WIDTH/2 - CAR_WIDTH/2;
                 carY = SCREEN_HEIGHT - CAR_HEIGHT -10;
                 obstacleSpeed = 0.005;
-                score=0;
+                score = 0;
+                break;
             }
-            else if (menuOption == 1){
-                    state = HIGH_SCORE;
-            } else if (menuOption == 2){
+            case 1: {// HIGH SCORE
+                state = HIGH_SCORE;
+                break;
+            }
+            case 2:{ // HOW TO PLAY
                 state = HOW_TO_PLAY;
-            } else if(menuOption == 3){
-             quit = true;
-             }
-             continue;
+                break;
             }
+            case 3:{ // RESET HIGH SCORE
+                highscore = 0;
+                FILE* f = fopen("highscore.txt", "w");
+                if (f) {
+                    fprintf(f, "%d", highscore);
+                    fclose(f);
+                }
+            state = MENU;
+                break;
             }
+            case 4: {// EXIT
+                quit = true;
+                break;
+        }
+    }
+}
+      break;
+      case GAME_OVER:
+      case HOW_TO_PLAY:
+      case HIGH_SCORE:
+         if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
+                    state = MENU;
+                }
+                break;
+            }
+        }
 
 
             if (state == GAME_OVER && e.type == SDL_KEYDOWN) {
                 if (e.key.keysym.sym == SDLK_RETURN) {
                     state = MENU;
-                    continue;
+
 
                 }
             }
-            if (state == HOW_TO_PLAY && e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_RETURN) {
+            if (state == HOW_TO_PLAY && e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
                 state = MENU;
-                continue;
             }
-            }
-            if (state == HIGH_SCORE && e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_RETURN) {
+            if (state == HIGH_SCORE && e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
                 state = MENU;
-                continue;
-    }
 }
-        }
+
            if (state == HIGH_SCORE) {
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // nền đen
                 SDL_RenderClear(renderer);
@@ -172,7 +193,6 @@ int main(int argc, char* args[]) {
     SDL_DestroyTexture(texture);
 
     SDL_RenderPresent(renderer);
-    continue;
 }
 
             if (state == MENU) {
@@ -195,8 +215,8 @@ int main(int argc, char* args[]) {
 
             SDL_DestroyTexture(texture);
 
-            const char* menuItems[] = {"START", "HIGHEST SCORE", "HOW TO PLAY", "Exit"};
-     for (int i = 0; i < 4; ++i) {
+            const char* menuItems[] = {"START", "HIGHEST SCORE", "HOW TO PLAY", "RESET HIGH SCORE", "Exit"};
+     for (int i = 0; i < 5; ++i) {
             SDL_Color color = (i == menuOption) ? SDL_Color{255, 0, 0} : white;  // Mục đang chọn màu đỏ
             surface = TTF_RenderText_Solid(font, menuItems[i], color);
 
@@ -213,9 +233,7 @@ int main(int argc, char* args[]) {
         if (state == HOW_TO_PLAY) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Màu nền đen
         SDL_RenderClear(renderer);  // Dọn sạch màn hình
-
         SDL_Color white = {255, 255, 255};  // Màu chữ trắng
-
         // Hiển thị cách chơi
         const char* howToPlayLines[] ={
               "Use arrow up, down, left, right to move the car",
@@ -231,12 +249,9 @@ int main(int argc, char* args[]) {
           SDL_FreeSurface(surface);
           SDL_DestroyTexture(texture);
 }
-
         SDL_RenderPresent(renderer);
-        continue;
-    }
-}
 
+    }
         if (state == PLAYING) {
             const Uint8* keystates = SDL_GetKeyboardState(NULL);
             if (keystates[SDL_SCANCODE_LEFT]) carX -= 5;
@@ -251,23 +266,20 @@ int main(int argc, char* args[]) {
 
            // Cập nhật vị trí CNV và Power-Up
            obstacleY += obstacleSpeed;
-
             if (powerVisible) {
                 powerY += 2 ;
-
             if (powerY > SCREEN_HEIGHT) {
             powerVisible = false;
     }
 }
              else {
-    // Cơ hội xuất hiện lại ngẫu nhiên
+    //xuất hiện lại ngẫu nhiên
              if (rand() % 1000 < 5) {
         powerVisible = true;
         powerX = rand() % (SCREEN_WIDTH - 30);
         powerY = -200;
     }
 }
-
 // Tăng tốc độ dần theo thời gian
 obstacleSpeed += speedIncreaseRate;
 
@@ -304,8 +316,8 @@ if (powerVisible &&
     powerVisible = false;
 }
 
-// Sau 3 giây, khôi phục tốc độ
-if (isSlowed && SDL_GetTicks() - slowStartTime >= 3000) {
+// Sau 3.5 giây, khôi phục tốc độ
+if (isSlowed && SDL_GetTicks() - slowStartTime >= 3500) {
     obstacleSpeed *= 2;
     isSlowed = false;
 }
@@ -371,12 +383,15 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3000) {
             SDL_Rect rect = {50, 200, surface->w, surface->h};
             SDL_RenderCopy(renderer, texture, NULL, &rect);
             SDL_FreeSurface(surface);
-            SDL_FreeSurface(surface);
+            SDL_DestroyTexture(texture);
 
             SDL_RenderPresent(renderer);
 
 
         }
+    }
+
+
 
 
     TTF_CloseFont(font);
@@ -384,9 +399,9 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3000) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }
+
 // 1234567
 
 
