@@ -11,8 +11,8 @@ const int SCREEN_HEIGHT = 480;
 // Kích thước xe và chướng ngại vật
 const int CAR_WIDTH = 25;
 const int CAR_HEIGHT = 50;
-const int OBSTACLE_WIDTH = 25;
-const int OBSTACLE_HEIGHT = 45;
+const int OBSTACLE_WIDTH = 35;
+const int OBSTACLE_HEIGHT = 55;
 
 enum Gamestate{
 MENU,
@@ -76,16 +76,17 @@ int main(int argc, char* args[]) {
 
 
     // Tốc độ ban đầu của chướng ngại vật
-    float obstacleSpeed = 0.005; // Tốc độ khởi đầu
-    float speedIncreaseRate = 0.0015; // Tốc độ tăng thêm sau mỗi frame
+    float obstacleSpeed = 0.025; // Tốc độ khởi đầu
+    const float speedIncreaseRate = 0.0005; // Tốc độ tăng thêm sau mỗi frame
+    const float maxObstacleSpeed = 5.0; //max speed
     int score = 0;
     int highscore = 0;
     FILE* f = fopen("highscore.txt","r");
-    if(f){
+    if(f != NULL ){
         fscanf(f, "%d", &highscore);
         fclose(f);
     }
-    Gamestate state = MENU;
+    enum Gamestate state = MENU;
 
     // Vòng lặp game
     bool quit = false;
@@ -109,15 +110,16 @@ int main(int argc, char* args[]) {
                         menuOption = (menuOption + 1) % 5;
                     }
             if (e.key.keysym.sym == SDLK_RETURN){
-                     FILE* f = NULL;
                     switch(menuOption) {
             case 0: {// START
                 state = PLAYING;
                 obstacleY = -OBSTACLE_HEIGHT;
                 carX = SCREEN_WIDTH/2 - CAR_WIDTH/2;
                 carY = SCREEN_HEIGHT - CAR_HEIGHT -10;
-                obstacleSpeed = 0.005;
+                obstacleSpeed = 0.025;
                 score = 0;
+                powerVisible = true;
+                powerY = -200;
                 break;
             }
             case 1: {// HIGH SCORE
@@ -130,12 +132,11 @@ int main(int argc, char* args[]) {
             }
             case 3:{ // RESET HIGH SCORE
                 highscore = 0;
-                FILE* f = fopen("highscore.txt", "w");
+                f = fopen("highscore.txt", "w");
                 if (f) {
                     fprintf(f, "%d", highscore);
                     fclose(f);
                 }
-            state = MENU;
                 break;
             }
             case 4: {// EXIT
@@ -152,15 +153,13 @@ int main(int argc, char* args[]) {
                     state = MENU;
                 }
                 break;
+      case PLAYING:
+        break;
             }
         }
-
-
             if (state == GAME_OVER && e.type == SDL_KEYDOWN) {
                 if (e.key.keysym.sym == SDLK_RETURN) {
                     state = MENU;
-
-
                 }
             }
             if (state == HOW_TO_PLAY && e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
@@ -198,11 +197,8 @@ int main(int argc, char* args[]) {
             if (state == MENU) {
 
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // neenf dden
-
             SDL_RenderClear(renderer);
-
             SDL_Color white = {255, 255, 255}; // mauf chuwx tranwsg
-
             surface = TTF_RenderText_Solid(font, "Racing Attack - PRESS ENTER TO START =)) ", white);
 
             texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -214,7 +210,6 @@ int main(int argc, char* args[]) {
             SDL_FreeSurface(surface);
 
             SDL_DestroyTexture(texture);
-
             const char* menuItems[] = {"START", "HIGHEST SCORE", "HOW TO PLAY", "RESET HIGH SCORE", "Exit"};
      for (int i = 0; i < 5; ++i) {
             SDL_Color color = (i == menuOption) ? SDL_Color{255, 0, 0} : white;  // Mục đang chọn màu đỏ
@@ -226,18 +221,43 @@ int main(int argc, char* args[]) {
             SDL_FreeSurface(surface);
             SDL_DestroyTexture(texture);
         }
+            SDL_RenderPresent(renderer);
+        }
+         else if (state == HIGH_SCORE) {
+            SDL_SetRenderDrawColor(renderer, 0,0,0,255);
+            SDL_RenderClear(renderer);
+            SDL_Color white = {255,255,255,255};
+
+            char hsText[64];
+            snprintf(hsText, sizeof(hsText), "Highest Score: %d", highscore);
+            SDL_Surface* surface = TTF_RenderText_Solid(font, hsText, white);
+            SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_Rect rect = { (SCREEN_WIDTH - surface->w)/2, SCREEN_HEIGHT/2 - surface->h, surface->w, surface->h };
+            SDL_RenderCopy(renderer, texture, NULL, &rect);
+            SDL_FreeSurface(surface);
+            SDL_DestroyTexture(texture);
+
+            const char* prompt = "Press Enter to return";
+            surface = TTF_RenderText_Solid(font, prompt, white);
+            texture = SDL_CreateTextureFromSurface(renderer, surface);
+            rect.x = (SCREEN_WIDTH - surface->w)/2;
+            rect.y = SCREEN_HEIGHT/2 + 20;
+            rect.w = surface->w;
+            rect.h = surface->h;
+            SDL_RenderCopy(renderer, texture, NULL, &rect);
+            SDL_FreeSurface(surface);
+            SDL_DestroyTexture(texture);
 
             SDL_RenderPresent(renderer);
         }
-
-        if (state == HOW_TO_PLAY) {
+        else if (state == HOW_TO_PLAY) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Màu nền đen
         SDL_RenderClear(renderer);  // Dọn sạch màn hình
         SDL_Color white = {255, 255, 255};  // Màu chữ trắng
         // Hiển thị cách chơi
         const char* howToPlayLines[] ={
               "Use arrow up, down, left, right to move the car",
-              "Try to advoid the obstacles and use the power-ups",
+              "Try to avoid the obstacles and use the power-ups",
               "to get the highest score",
               "Press Enter to return to Menu."
         } ;
@@ -252,7 +272,7 @@ int main(int argc, char* args[]) {
         SDL_RenderPresent(renderer);
 
     }
-        if (state == PLAYING) {
+        else if (state == PLAYING) {
             const Uint8* keystates = SDL_GetKeyboardState(NULL);
             if (keystates[SDL_SCANCODE_LEFT]) carX -= 5;
             if (keystates[SDL_SCANCODE_RIGHT]) carX += 5;
@@ -265,13 +285,21 @@ int main(int argc, char* args[]) {
             if (carY > SCREEN_HEIGHT - CAR_HEIGHT) carY = SCREEN_HEIGHT - CAR_HEIGHT;
 
            // Cập nhật vị trí CNV và Power-Up
-           obstacleY += obstacleSpeed;
+            obstacleY += obstacleSpeed;
+            if (obstacleY > SCREEN_HEIGHT) {
+                obstacleY = -OBSTACLE_HEIGHT;
+                obstacleX = rand() % (SCREEN_WIDTH - OBSTACLE_WIDTH);
+                score++;
+                // Tăng speed nhưng không vượt quá max
+                obstacleSpeed += speedIncreaseRate;
+                if (obstacleSpeed > maxObstacleSpeed) obstacleSpeed = maxObstacleSpeed;
+            }
             if (powerVisible) {
-                powerY += 2 ;
-            if (powerY > SCREEN_HEIGHT) {
-            powerVisible = false;
-    }
-}
+                powerY += 2;
+                if (powerY > SCREEN_HEIGHT) {
+                    powerVisible = false;
+                }
+            }
              else {
     //xuất hiện lại ngẫu nhiên
              if (rand() % 1000 < 5) {
@@ -279,16 +307,7 @@ int main(int argc, char* args[]) {
         powerX = rand() % (SCREEN_WIDTH - 30);
         powerY = -200;
     }
-}
-// Tăng tốc độ dần theo thời gian
-obstacleSpeed += speedIncreaseRate;
-
-// Reset chướng ngại vật nếu đi qua màn hình
-if (obstacleY > SCREEN_HEIGHT) {
-    obstacleY = -OBSTACLE_HEIGHT;
-    obstacleX = rand() % (SCREEN_WIDTH - OBSTACLE_WIDTH);
-    score++;
-}
+             }
 
 // Kiểm tra va chạm với chướng ngại vật
 if (carX < obstacleX + OBSTACLE_WIDTH &&
@@ -297,12 +316,12 @@ if (carX < obstacleX + OBSTACLE_WIDTH &&
     carY + CAR_HEIGHT > obstacleY) {
     if (score > highscore) {
         highscore = score;
-        FILE* f = fopen("highscore.txt", "w");
+        f = fopen("highscore.txt", "w");
         if (f) { fprintf(f, "%d", highscore); fclose(f); }
     }
-    state = GAME_OVER;
-}
 
+    state = GAME_OVER;
+    }
 // Va chạm với Power-Up
 if (powerVisible &&
     carX < powerX + 30 &&
@@ -310,7 +329,7 @@ if (powerVisible &&
     carY < powerY + 30 &&
     carY + CAR_HEIGHT > powerY) {
 
-    obstacleSpeed *= 0.5; // Giảm tốc độ còn một nửa
+    obstacleSpeed *= 0.005; // Giảm tốc độ còn một nửa
     isSlowed = true;
     slowStartTime = SDL_GetTicks();
     powerVisible = false;
@@ -321,8 +340,6 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3500) {
     obstacleSpeed *= 2;
     isSlowed = false;
 }
-
-
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);  // Màu trắng
@@ -366,14 +383,19 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3500) {
           SDL_FreeSurface(scoreSurface);
           SDL_DestroyTexture(scoreTexture);
 
+          char hsText[64];
+            snprintf(hsText, sizeof(hsText), "High Score: %d", highscore);
+            SDL_Surface* hsSurface = TTF_RenderText_Solid(font, hsText, white);
+            SDL_Texture* hsTexture = SDL_CreateTextureFromSurface(renderer, hsSurface);
+            SDL_Rect hsRect = { SCREEN_WIDTH - hsSurface->w - 10, 10, hsSurface->w, hsSurface->h };
+            SDL_RenderCopy(renderer, hsTexture, NULL, &hsRect);
+            SDL_FreeSurface(hsSurface);
+            SDL_DestroyTexture(hsTexture);
 
             SDL_RenderPresent(renderer);
-            SDL_Delay(16);
-
-
         }
 
-        if (state == GAME_OVER) {
+        else if (state == GAME_OVER) {
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
 
@@ -389,11 +411,10 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3500) {
 
 
         }
+            SDL_Delay(16);
+
     }
-
-
-
-
+    }
     TTF_CloseFont(font);
     TTF_Quit();
     SDL_DestroyRenderer(renderer);
