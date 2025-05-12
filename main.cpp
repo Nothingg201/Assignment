@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <SDL_mixer.h>
 
 // Kích thước cửa sổ game
 const int SCREEN_WIDTH = 640;
@@ -13,6 +14,9 @@ const int CAR_WIDTH = 25;
 const int CAR_HEIGHT = 50;
 const int OBSTACLE_WIDTH = 35;
 const int OBSTACLE_HEIGHT = 55;
+Mix_Music* bgMusic = NULL;       // Nhạc nền
+Mix_Chunk* crashSound = NULL;    // Âm thanh va chạm
+Mix_Chunk* powerupSound = NULL;  // Âm thanh ăn item
 
 enum Gamestate{
 MENU,
@@ -26,15 +30,31 @@ int menuOption = 0; // menu 0: Start, 1: High Score, 2: Cách chơi, 3: Reset hi
 
 int main(int argc, char* args[]) {
     // Khởi tạo SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-        return -1;
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+    printf("SDL could not initialize! Error: %s\n", SDL_GetError());
+    return -1;
     }
+// Khởi tạo SDL_mixer (44100Hz, stereo, 2048 sample buffer)
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    printf("SDL_mixer could not initialize! Error: %s\n", Mix_GetError());
+    SDL_Quit();
+    return -1;
+}
+  bgMusic = Mix_LoadMUS("music/Megalovania.mp3");  // Nhạc nền (nếu có)
+if (!bgMusic) {
+    printf("Failed to load music: %s\n", Mix_GetError());
+} else{
+    Mix_PlayMusic(bgMusic, -1);  // -1 = lặp vô hạn
+    Mix_VolumeMusic(30);         // Âm lượng (0-128)
+}
+crashSound = Mix_LoadWAV("sounds/crash.wav");    // Âm thanh va chạm
+powerupSound = Mix_LoadWAV("sounds/powerup.wav");// Âm thanh ăn item
 
     // Tạo cửa sổ game
     SDL_Window* window = SDL_CreateWindow("Racing Attack", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-    if (window == NULL) {
+    if (!window) {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        Mix_CloseAudio();
         SDL_Quit();
         return -1;
     }
@@ -44,17 +64,28 @@ int main(int argc, char* args[]) {
     if (renderer == NULL) {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
+        Mix_CloseAudio();
         SDL_Quit();
         return -1;
     }
+    //tạo SDL_ttf
     if (TTF_Init() == -1) {
     printf("TTF_Init Error: %s\n", TTF_GetError());
+    SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        Mix_CloseAudio();
+        SDL_Quit();
     return -1;
 }
 
      TTF_Font* font = TTF_OpenFont("arial.ttf", 24);
     if (!font) {
         printf("Failed to load font: %s\n", TTF_GetError());
+        TTF_Quit();
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        Mix_CloseAudio();
+        SDL_Quit();
         return -1;
     }
     // Màu nền
@@ -314,6 +345,9 @@ if (carX < obstacleX + OBSTACLE_WIDTH &&
     carX + CAR_WIDTH > obstacleX &&
     carY < obstacleY + OBSTACLE_HEIGHT &&
     carY + CAR_HEIGHT > obstacleY) {
+    if (crashSound) {
+        Mix_PlayChannel(-1, crashSound, 0);  // Phát âm thanh va chạm
+    }
     if (score > highscore) {
         highscore = score;
         f = fopen("highscore.txt", "w");
@@ -328,6 +362,9 @@ if (powerVisible &&
     carX + CAR_WIDTH > powerX &&
     carY < powerY + 30 &&
     carY + CAR_HEIGHT > powerY) {
+    if (powerupSound) {
+        Mix_PlayChannel(-1, powerupSound, 0);  // Phát âm thanh ăn item
+    }
 
     obstacleSpeed *= 0.005; // Giảm tốc độ còn một nửa
     isSlowed = true;
@@ -411,12 +448,16 @@ if (isSlowed && SDL_GetTicks() - slowStartTime >= 3500) {
 
 
         }
-            SDL_Delay(16);
+            SDL_Delay(10);
 
     }
     }
     TTF_CloseFont(font);
     TTF_Quit();
+    if (bgMusic) Mix_FreeMusic(bgMusic);
+    if (crashSound) Mix_FreeChunk(crashSound);
+    if (powerupSound) Mix_FreeChunk(powerupSound);
+    Mix_CloseAudio();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
